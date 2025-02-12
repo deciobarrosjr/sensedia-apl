@@ -1,0 +1,56 @@
+name: Manual Destroy Workflow
+
+on:
+  workflow_dispatch:
+
+env:
+  PREFIX_NAME: ${{ vars.PREFIX_NAME }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "latest"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Delete ECR repository
+        continue-on-error: true
+        run: |
+          aws ecr delete-repository --repository-name ${{ env.PREFIX_NAME }}-image --force
+          aws ecr delete-repository --repository-name ${{ env.PREFIX_NAME }}-ecr/${{ env.PREFIX_NAME }} --force          
+
+      - name: Defining the required variables for Terraform
+        run: |
+          echo "TF_LOG=DEBUG" >> $GITHUB_ENV
+          echo "TF_LOG_PATH=./terraform.log" >> $GITHUB_ENV
+
+          echo "TF_VAR_region=${{ env.AWS_REGION }}" >> $GITHUB_ENV
+          echo "TF_VAR_App-Image=${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-image:latest" >> $GITHUB_ENV  
+          echo "TF_VAR_hlm-chart-repository=oci://${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-ecr" >> $GITHUB_ENV
+          echo "TF_VAR_hlm-chart-chart=${{ env.PREFIX_NAME }}" >> $GITHUB_ENV
+          echo "TF_VAR_hlm-chart-version=${{ env.CHART_VERSION }}" >> $GITHUB_ENV
+          echo "TF_VAR_apl-namespace=default" >> $GITHUB_ENV
+
+      - name: Destroy the L4-apl   
+        run: |
+          _layer_path="./AWS-Resources/L4-apl"
+
+          cd ${_layer_path}
+          terraform init
+          terraform destroy -var region=${{ env.TF_VAR_region }} -auto-approve
+
+        

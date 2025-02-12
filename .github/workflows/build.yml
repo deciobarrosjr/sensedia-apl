@@ -1,0 +1,253 @@
+name: "CI Build for Sensedia Challenge"
+on:
+  push:
+    branches:
+      - 'main'
+      - 'release/**'
+      - 'hotfix/**'
+  workflow_dispatch:
+    inputs:
+      VERBOSE:
+        description: 'Verbose mode'
+        required: false
+        default: 'false'      
+
+env:
+  VERBOSE: false
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ACCOUNT_ID: ${{ vars.ACCOUNT_ID }}
+  PREFIX_NAME: ${{ vars.PREFIX_NAME }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build and Delivery Apl  
+    steps:
+
+      # PULL THE CURRENT REPOSITORY
+
+      - name: Checkout Code
+        uses: actions/checkout@v4     
+
+      # OUTPUTS THE CURRENT INSTALLED VERSIONS WHEN THE VERBOSE ENVIRONMENT VARIABLE IS SET TO TRUE
+
+      - name: Checking current installed versions on the environment
+        if: ${{ env.VERBOSE == 'true' }}
+        run: |
+          echo " "
+          echo "***** Checking current installed versions on the environment ******************************"
+
+          python3 --version
+          pip3 --version
+          tar --version
+          docker --version
+          helm version
+          echo "*******************************************************************************************"
+
+      # CONFIGURING THE AWS CREDENTIALS USING THE "PAT - Hashicorp Decio"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # CHANGE THE HELM CHART NAME TO THE PREFIX_NAME
+
+      - name: Customizing the Helm Chart
+        run: |
+          sed -i "s|"-Helm-Chart-Name-"|"${{ env.PREFIX_NAME }}"|g" "./HLM-HelloWorld/Chart-orig.yaml" 
+          cp ./HLM-HelloWorld/Chart-orig.yaml ./HLM-HelloWorld/Chart.yaml   
+          rm -rf ./HLM-HelloWorld/Chart-orig.yaml      
+
+      - name: Create Environment variable CHART_VERSION
+        id: define-variable
+        run: |
+          CHART_VERSION=$(grep "version:" "./HLM-HelloWorld/Chart.yaml" | awk '{print $2}')
+          echo "CHART_VERSION=${CHART_VERSION}" >> $GITHUB_ENV 
+
+          if [ "${{ env.VERBOSE }}" == "true" ]; then 
+            echo ">     Recovering and logging the current chart version..."
+            head -n 6 ./HLM-HelloWorld/Chart.yaml 
+          fi   
+
+      # CREATING THE DOCKER IMAGE AND LISTING THE LOCAL IMAGES IF THE VERBOSE ENVIRONMENT VARIABLE IS SET TO TRUE
+
+      - name: Creating the Docker image
+        run: |
+          docker build -t ${{ env.PREFIX_NAME }}-image:latest -f "./APL-HelloWorld/Dockerfile" "./APL-HelloWorld" 2>/dev/null
+
+          if [ "${{ env.VERBOSE }}" == "true" ]; then
+            docker images
+          fi
+
+      # CREATING A REPOSITORY ON AWS ECR TO HOLD THE DOCKER IMAGES THE REPO NAME WILL BE: ${{ env.PREFIX_NAME }}-image
+
+      - name: Create a new Registry on ECR to hold Docker Images
+        run: |
+          _registry_exists=$(aws ecr describe-repositories | jq -r '.repositories[] | select(.repositoryName=="${{ env.PREFIX_NAME }}-image") | .repositoryName')
+
+          if [ -z "${_registry_exists}" ]; then
+            _registry_ID=$(aws ecr create-repository --repository-name ${{ env.PREFIX_NAME }}-image --region ${{ env.AWS_REGION }} --query "repository.registryId" --output text)
+            echo "Repository ${{ env.PREFIX_NAME }}-image created and received the RegistryID: $_registry_ID ..."
+          else
+            echo "Repository ${{ env.PREFIX_NAME }}-image already exists..."
+          fi
+
+      # AUTHENTICATING DOCKER WITH ECR 
+
+      - name: Authenticating Docker with ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com 2>/dev/null  
+
+      # PUSHING THE DOCKER IMAGE TO THE ECR
+
+      - name: Pushing the Docker Image to the ECR
+        run: |
+          docker tag ${{ env.PREFIX_NAME }}-image:latest ${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-image:latest
+
+          if [ "${{ env.VERBOSE }}" == "true" ]; then
+            echo "*****     Pushing the Docker Image to the ECR..."
+            echo "ACCOUNT_ID: ${{ env.ACCOUNT_ID }}"
+            echo "AWS_REGION: ${{ env.AWS_REGION }}"
+            echo "PREFIX_NAME: ${{ env.PREFIX_NAME }}"
+            echo "************************************************"          
+            docker images
+          fi
+
+          docker push ${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-image:latest
+
+      # LINTING THE HELM CHART
+
+      - name: Executes the chart lint
+        run: |
+          helm lint "./HLM-HelloWorld"  
+
+      # PACKAGING THE HELM CHART
+
+      - name: Package the Helm Chart
+        run: |
+          helm package "./HLM-HelloWorld" --destination "./HLM-Package"
+
+      # CREATING A REPOSITORY ON AWS ECR TO HOLD THE HELM CHARTS THE REPO NAME WILL BE: ${{ env.PREFIX_NAME }}-helm
+
+      - name: Create a new Registry on ECR to hold Helm Charts
+        run: |
+          _registry_exists=$(aws ecr describe-repositories | jq -r '.repositories[] | select(.repositoryName=="${{ env.PREFIX_NAME }}-helm/${{ env.PREFIX_NAME }}") | .repositoryName')        
+
+          if [ -z "${_registry_exists}" ]; then
+            _registry_ID=$(aws ecr create-repository --repository-name ${{ env.PREFIX_NAME }}-helm/${{ env.PREFIX_NAME }} --query "repository.registryId" --output text)             
+            echo "Repository ${{ env.PREFIX_NAME }} created and received the RegistryID: ${_registry_ID}"          
+          else
+            echo "Repository ${{ env.PREFIX_NAME }} already exists..."
+          fi
+
+    # AUTHENTICATING HELM WITH ECR
+
+      - name: Authenticate Helm with ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | helm registry login --username AWS --password-stdin ${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+      # PUSHING THE HELM CHART TO THE ECR
+
+      - name: Pushing the Helm Chart to the ECR 
+        run: |  
+          ls -l ./HLM-Package   
+          helm push ./HLM-Package/${{ env.PREFIX_NAME }}-${{ env.CHART_VERSION }}.tgz oci://${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-helm
+
+
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    name: Deploy the Application
+    needs: build
+    steps:
+
+      # INSTALLLING THE LATEST TERRAFORM VERSION ONCE IT DOEN´T COME INSTALLED ON ubuntu-latest 
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "latest" 
+
+      # PULL THE CURRENT REPOSITORY
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Environment variables CHART_VERSION and ACCOUNT_ID
+        id: define-variable
+        run: |
+          CHART_VERSION=$(grep "version:" "./HLM-HelloWorld/Chart.yaml" | awk '{print $2}')
+          echo "CHART_VERSION=${CHART_VERSION}" >> $GITHUB_ENV  
+
+      # CONFIGURING THE AWS CREDENTIALS USING THE "PAT - Hashicorp Decio"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # DEFINING THE REQUIRED VARIABLES FOR TERRAFORM EXECUTION   
+
+      - name: Defining the required variables for Terraform
+        run: |
+          echo "TF_LOG=DEBUG" >> $GITHUB_ENV
+          echo "TF_LOG_PATH=./terraform.log" >> $GITHUB_ENV
+
+          echo "TF_VAR_region=${{ env.AWS_REGION }}" >> $GITHUB_ENV
+          echo "TF_VAR_App-Image=${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-image:latest" >> $GITHUB_ENV  
+          echo "TF_VAR_hlm-chart-repository=oci://${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-helm" >> $GITHUB_ENV
+          echo "TF_VAR_hlm-chart-chart=${{ env.PREFIX_NAME }}" >> $GITHUB_ENV
+          echo "TF_VAR_hlm-chart-version=${{ env.CHART_VERSION }}" >> $GITHUB_ENV
+          echo "TF_VAR_apl-namespace=default" >> $GITHUB_ENV
+
+      # DEPLOYING THE APPLICATION USING TERRAFORM   
+
+      - name: Terraform Deploying the application
+        continue-on-error: ${{ env.VERBOSE }}
+        run: |
+          cd ./AWS-Resources/L4-apl 
+
+          if [ "${{ env.VERBOSE }}" == "true" ]; then
+            ls -al ./AWS-Resources/L4-apl
+            terraform --version
+          fi 
+
+
+          echo " "
+          echo " "
+          echo "*****     General Environment Variables .... *************************"
+          echo "ACCOUNT_ID: ${{ env.ACCOUNT_ID }}"          
+          echo "CHART_VERSION: ${{ env.CHART_VERSION }}"
+          echo "AWS_REGION: ${{ env.AWS_REGION }}"
+          echo "PREFIX_NAME: ${{ env.PREFIX_NAME }}"
+          echo "TF_LOG: ${{ env.TF_LOG }}"
+          echo "TF_LOG_PATH: ${{ env.TF_LOG_PATH }}"
+          echo " "
+
+          echo "*****     Helm Chart Variables .... **********************************"
+          echo "App-Image=${{ env.TF_VAR_App-Image }}"
+          echo "hlm-chart-repository=${{ env.TF_VAR_hlm-chart-repository }}"
+          echo "hlm-chart-chart=${{ env.TF_VAR_hlm-chart-chart }}"
+          echo "hlm-chart-version=${{ env.TF_VAR_hlm-chart-version }}"
+          echo "apl-namespace=${{ env.TF_VAR_apl-namespace }}"
+          echo "**********************************************************************"
+          echo " "
+          echo " "
+
+          terraform init
+          terraform validate
+          terraform apply -auto-approve
+
+      # OUTPUTS THE TERRAFORM LOG FILE WHEN THE VERBOSE ENVIRONMENT VARIABLE IS SET TO TRUE
+
+      - name: Outputs the Terraform Log File
+        if: ${{ env.VERBOSE == 'true' }}
+        run: cat ${{ env.TF_LOG_PATH }}

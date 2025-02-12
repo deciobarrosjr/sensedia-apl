@@ -1,0 +1,19 @@
+# Default values for my-apl-chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+AppImage: 489047582581.dkr.ecr.sa-east-1.amazonaws.com/my-apl-image:latest
+replicaCount: 1
+AplName: my-apl
+svcType: NodePort
+containerPort: 8080
+Port: 80
+NodePort: 30000
+
+deployment:
+  env:
+    - name: HELLO_SVC_TYPE
+      value: "values.yaml"
+
+service:
+  AlbScheme: internet-facing
