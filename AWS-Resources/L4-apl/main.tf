@@ -52,9 +52,9 @@ data "aws_eks_cluster_auth" "my-aws-cluster-auth" {
 #                                 REQUESTING ECR AUTHORIZATION TOKEN
 ####################################################################################################
 
-#data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "current" {}
 
-#data "aws_ecr_authorization_token" "token" {}
+data "aws_ecr_authorization_token" "token" {}
 
 
 ####################################################################################################
@@ -67,8 +67,8 @@ resource "helm_release" "my-apl-clusterip" {
 
   name                = var.hlm-chart-name-1
   repository          = var.hlm-chart-repository
- # repository_username = data.aws_ecr_authorization_token.token.user_name
- # repository_password = data.aws_ecr_authorization_token.token.password
+  repository_username = data.aws_ecr_authorization_token.token.user_name
+  repository_password = data.aws_ecr_authorization_token.token.password
   chart               = var.hlm-chart-chart
   version             = var.hlm-chart-version
   namespace           = var.apl-namespace
@@ -129,8 +129,8 @@ resource "helm_release" "my-apl-loadbalancer" {
 
   name                = var.hlm-chart-name-2
   repository          = var.hlm-chart-repository
-  #repository_username = data.aws_ecr_authorization_token.token.user_name
-  #repository_password = data.aws_ecr_authorization_token.token.password
+  repository_username = data.aws_ecr_authorization_token.token.user_name
+  repository_password = data.aws_ecr_authorization_token.token.password
   chart               = var.hlm-chart-chart
   version             = var.hlm-chart-version
   namespace           = var.apl-namespace
@@ -192,8 +192,8 @@ resource "helm_release" "my-apl-nodeport" {
 
   name                = var.hlm-chart-name-3
   repository          = var.hlm-chart-repository
-  #repository_username = data.aws_ecr_authorization_token.token.user_name
-  #repository_password = data.aws_ecr_authorization_token.token.password
+  repository_username = data.aws_ecr_authorization_token.token.user_name
+  repository_password = data.aws_ecr_authorization_token.token.password
   chart               = var.hlm-chart-chart
   version             = var.hlm-chart-version
   namespace           = var.apl-namespace
