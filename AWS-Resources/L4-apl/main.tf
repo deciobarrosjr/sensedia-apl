@@ -63,7 +63,7 @@ data "aws_eks_cluster_auth" "my-aws-cluster-auth" {
 
 resource "helm_release" "my-apl-clusterip" {
 
- depends_on = [ data.terraform_remote_state.l2-irsa, data.terraform_remote_state.l1-eks, data.aws_caller_identity.current, data.aws_ecr_authorization_token.token ]
+ depends_on = [ data.terraform_remote_state.l2-irsa, data.terraform_remote_state.l1-eks ]
 
   name                = var.hlm-chart-name-1
   repository          = var.hlm-chart-repository
@@ -125,7 +125,7 @@ resource "helm_release" "my-apl-clusterip" {
 
 resource "helm_release" "my-apl-loadbalancer" {
 
- depends_on = [ data.terraform_remote_state.l2-irsa, data.terraform_remote_state.l1-eks, data.aws_caller_identity.current,data.aws_ecr_authorization_token.token ]
+ depends_on = [ data.terraform_remote_state.l2-irsa, data.terraform_remote_state.l1-eks ]
 
   name                = var.hlm-chart-name-2
   repository          = var.hlm-chart-repository
@@ -188,7 +188,7 @@ resource "helm_release" "my-apl-loadbalancer" {
 
 resource "helm_release" "my-apl-nodeport" {
 
- depends_on = [ data.terraform_remote_state.l2-irsa, data.terraform_remote_state.l1-eks, data.aws_caller_identity.current,data.aws_ecr_authorization_token.token ]
+ depends_on = [ data.terraform_remote_state.l2-irsa, data.terraform_remote_state.l1-eks ]
 
   name                = var.hlm-chart-name-3
   repository          = var.hlm-chart-repository
