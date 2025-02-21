@@ -6,6 +6,7 @@ on:
 env:
   PREFIX_NAME: ${{ vars.PREFIX_NAME }}
   AWS_REGION: ${{ vars.AWS_REGION }}
+  ACCOUNT_ID: ${{ vars.ACCOUNT_ID }}
 
 jobs:
   destroy:
@@ -40,10 +41,11 @@ jobs:
 
           echo "TF_VAR_region=${{ env.AWS_REGION }}" >> $GITHUB_ENV
           echo "TF_VAR_App-Image=${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-image:latest" >> $GITHUB_ENV  
-          echo "TF_VAR_hlm-chart-repository=oci://${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-ecr" >> $GITHUB_ENV
+          echo "TF_VAR_hlm-chart-repository=oci://${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-helm" >> $GITHUB_ENV
           echo "TF_VAR_hlm-chart-chart=${{ env.PREFIX_NAME }}" >> $GITHUB_ENV
           echo "TF_VAR_hlm-chart-version=${{ env.CHART_VERSION }}" >> $GITHUB_ENV
           echo "TF_VAR_apl-namespace=default" >> $GITHUB_ENV
+
 
       - name: Destroy the L4-apl   
         run: |
