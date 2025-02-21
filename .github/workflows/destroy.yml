@@ -36,6 +36,9 @@ jobs:
 
       - name: Defining the required variables for Terraform
         run: |
+          echo "TF_LOG=DEBUG" >> $GITHUB_ENV
+          echo "TF_LOG_PATH=./terraform.log" >> $GITHUB_ENV
+
           echo "TF_VAR_region=${{ env.AWS_REGION }}" >> $GITHUB_ENV
           echo "TF_VAR_App-Image=${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-image:latest" >> $GITHUB_ENV  
           echo "TF_VAR_hlm-chart-repository=oci://${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PREFIX_NAME }}-helm" >> $GITHUB_ENV
