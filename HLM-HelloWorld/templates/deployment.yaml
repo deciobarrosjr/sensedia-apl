@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.AplName }}
+  annotations:
+    releaseTime: {{ dateInZone "2006-01-02 15:04:05Z" (now) "America/Sao_Paulo" | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
