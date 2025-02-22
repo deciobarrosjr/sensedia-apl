@@ -73,6 +73,8 @@ resource "helm_release" "my-apl-clusterip" {
   version             = var.hlm-chart-version
   namespace           = var.apl-namespace
   create_namespace    = false 
+  recreate_pods       = true
+
 
   #     ENNVIRONMENT VARIABLE WITH THE SERVICE TYPE THAT WILL BE RETURNED BY THE APPLICATION     #
   set {
@@ -135,6 +137,8 @@ resource "helm_release" "my-apl-loadbalancer" {
   version             = var.hlm-chart-version
   namespace           = var.apl-namespace
   create_namespace    = false 
+  recreate_pods       = true
+
 
   #     ENNVIRONMENT VARIABLE WITH THE SERVICE TYPE THAT WILL BE RETURNED BY THE APPLICATION     #
   set {
@@ -198,6 +202,8 @@ resource "helm_release" "my-apl-nodeport" {
   version             = var.hlm-chart-version
   namespace           = var.apl-namespace
   create_namespace    = false 
+  recreate_pods       = true
+
 
   #     ENNVIRONMENT VARIABLE WITH THE SERVICE TYPE THAT WILL BE RETURNED BY THE APPLICATION     #
   set {
