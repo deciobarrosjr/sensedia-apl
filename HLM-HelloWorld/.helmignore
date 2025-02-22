@@ -22,4 +22,4 @@
 *.tmproj
 .vscode/
 # File used to create the Chart.yaml during the execution of the force-apply-all script
-Chart-orig.yaml
+

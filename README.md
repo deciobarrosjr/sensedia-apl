@@ -60,8 +60,14 @@ You may, for example, change the color that will be used to render the page as i
 <div style="border: 1px solid gray; display: inline-block; margin-left: 0px;">
     <img src="./images/page.jpg" alt="Changing page color.">
 </div>
+<br><br>
 
+Once the change was applied to the application, the next step is changing the Helm Chart Version on the file :<span style="color: chocolate;">/HLM-HelloWorld/Chart.yaml</span> as illustrated bellow:<br>
 <br>
+
+<div style="border: 2px solid gray; display: flex; justify-content: center; align-items: center; margin-left: 0px; width: 75%;">
+	<img src="./images/chart.jpg" alt="Char.yml" style="width: 100%;">
+</div>
 
 ## Provisioning the application
 I created a GitHub workflow to provision the application named <span style="color: chocolate;">CI Build for Sensedia Challenge</span>. The image bellow illustrated the workflow is configured for execution:<br>

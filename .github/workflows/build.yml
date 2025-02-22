@@ -57,9 +57,7 @@ jobs:
 
       - name: Customizing the Helm Chart
         run: |
-          sed -i "s|"-Helm-Chart-Name-"|"${{ env.PREFIX_NAME }}"|g" "./HLM-HelloWorld/Chart-orig.yaml" 
-          cp ./HLM-HelloWorld/Chart-orig.yaml ./HLM-HelloWorld/Chart.yaml   
-          rm -rf ./HLM-HelloWorld/Chart-orig.yaml      
+          sed -i "s|"-Helm-Chart-Name-"|"${{ env.PREFIX_NAME }}"|g" "./HLM-HelloWorld/Chart.yaml"   
 
       - name: Create Environment variable CHART_VERSION
         id: define-variable
