@@ -31,7 +31,7 @@ jobs:
       - name: Delete ECR repository
         continue-on-error: true
         run: |
-          aws ecr delete-repository --repository-name ${{ env.PREFIX_NAME }}-image --force
+          aws ecr delete-repository --repository-name ${{ env.PREFIX_NAME }}-helm --force
           aws ecr delete-repository --repository-name ${{ env.PREFIX_NAME }}-ecr/${{ env.PREFIX_NAME }} --force          
 
       - name: Defining the required variables for Terraform
